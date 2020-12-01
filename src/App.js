@@ -1,10 +1,17 @@
 import "./App.css";
-import { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
-import { Slider, Button } from "antd";
+import { useState, useEffect, useRef } from "react";
+import { Slider, Button, Radio, Checkbox } from "antd";
 import Map from "./Map.jsx";
 import "antd/dist/antd.css";
 import { PlayCircleTwoTone, PauseCircleTwoTone } from "@ant-design/icons";
 let oldVal;
+
+const settings = [
+  { type: "deaths", perMillion: true, title: "Deaths Per Million", max: 40 },
+  { type: "deaths", perMillion: false, title: "Deaths", max: 40 },
+  { type: "cases", perMillion: true, title: "Cases Per Million", max: 2000 },
+  { type: "cases", perMillion: false, title: "Cases", max: 1000 },
+];
 
 function getDate(dateval) {
   const date = new Date(new Date(2020, 3, 16).getTime() + dateval * 86400000);
@@ -14,18 +21,18 @@ function getDate(dateval) {
   return datestr;
 }
 
-function useWindowSize() {
-  const [size, setSize] = useState([0, 0]);
-  useLayoutEffect(() => {
-    function updateSize() {
-      setSize([window.innerWidth, window.innerHeight]);
-    }
-    window.addEventListener("resize", updateSize);
-    updateSize();
-    return () => window.removeEventListener("resize", updateSize);
-  }, []);
-  return size;
-}
+// function useWindowSize() {
+//   const [size, setSize] = useState([0, 0]);
+//   useLayoutEffect(() => {
+//     function updateSize() {
+//       setSize([window.innerWidth, window.innerHeight]);
+//     }
+//     window.addEventListener("resize", updateSize);
+//     updateSize();
+//     return () => window.removeEventListener("resize", updateSize);
+//   }, []);
+//   return size;
+// }
 
 function App() {
   const [dateval, setDateval] = useState(0);
@@ -38,17 +45,20 @@ function App() {
       setDateval(val);
     }
   };
-  const date = useMemo(() => getDate(dateval), [dateval]);
-
+  const date = getDate(dateval);
+  const [increment, setIncrement] = useState(1)
   const [cases, setCases] = useState({});
   const [playing, setPlaying] = useState(true);
+  const [deathsOrCases, setDeathsOrCases] = useState("cases");
+  const [perMillion, setPerMillion] = useState(true);
+
   useEffect(() => {
     async function loadData() {
-      const data = await import(`./cases.json`);
-      const date = Object.keys(data).slice(-2)[0];
+      const data = await import(`./county_combined.json`);
+      const date = Object.keys(data).slice(-2)[0].replace("deaths", "");
       setMaxDay(
         Math.floor(
-          (new Date(date) - new Date(2020, 3, 16).getTime()) / 86400000
+          1 + (new Date(date) - new Date(2020, 3, 16).getTime()) / 86400000
         )
       );
       setCases(data);
@@ -65,7 +75,15 @@ function App() {
         clearTimeout(timer.current);
       }
       timer.current = setTimeout(() => {
-        setDateval(dateval + 1);
+        console.timeEnd("timer");
+        console.time("timer");
+        setDateval(Math.min(dateval + increment, maxDay));
+
+        if (dateval + 1 === maxDay) {
+          //setPlaying(false);
+          setIncrement(-1);
+          setDateval(Math.min(dateval - 1, maxDay));
+        }
       }, 500);
 
       // Clear timeout if the component is unmounted
@@ -76,20 +94,54 @@ function App() {
     }
   }, [playing, dateval]);
 
-  const size = useWindowSize();
+  //  const size = useWindowSize();
+  const setting = settings.find(
+    (val) => val.perMillion === perMillion && val.type === deathsOrCases
+  );
   return (
     <div className="App">
       <div>
-        <span style={{ fontSize: 30, fontWeight: "bold" }}>{date}</span>
+        <div>
+          <Checkbox
+            style={{ margin: 5 }}
+            checked={perMillion}
+            onChange={(event) => setPerMillion(event.target.checked)}
+          >
+            Per Million
+          </Checkbox>
+          <Radio.Group
+            style={{ margin: 5 }}
+            buttonStyle="solid"
+            size="large"
+            value={deathsOrCases}
+            defaultValue="cases"
+            onChange={(event) => setDeathsOrCases(event.target.value)}
+          >
+            <Radio.Button value="cases">Cases</Radio.Button>
+            <Radio.Button value="deaths">Deaths</Radio.Button>
+          </Radio.Group>
+          <div
+            style={{
+              color: "#6c6c6c",
+              display: "inline-block",
+              fontSize: 35,
+              width: 160,
+              fontWeight: "bold",
+            }}
+          >
+            {date}
+          </div>
+        </div>
         <div style={{ display: "flex", paddingRight: 50, paddingLeft: 50 }}>
-          <div style={{ flex: 1 }}>
+          <div style={{ width: 50 }}>
             <Button
+              style={{ margin: 5 }}
               size="large"
               onClick={() => setPlaying(!playing)}
               icon={playing ? <PauseCircleTwoTone /> : <PlayCircleTwoTone />}
             />
           </div>
-          <div style={{ flex: 30, paddingLeft: 10 }}>
+          <div style={{ flex: 20, paddingLeft: 10, paddingTop: 8 }}>
             <Slider
               size="large"
               disabled={false}
@@ -107,9 +159,13 @@ function App() {
       </div>
       <Map
         cases={cases}
+        deathsOrCases={deathsOrCases}
+        perMillion={perMillion}
+        title={setting.title}
+        max={setting.max}
         datestr={date}
-        width={size[0]}
-        height={size[1] - 100}
+        width={960}
+        height={500}
       />
     </div>
   );
