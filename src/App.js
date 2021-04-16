@@ -17,27 +17,16 @@ function getDate(dateval) {
   const date = new Date(new Date(2020, 3, 16).getTime() + dateval * 86400000);
   const datestr = new Intl.DateTimeFormat("en-US")
     .format(date)
-    .replace("2020", "20");
+    .replace("2020", "20")
+    .replace("2021", "21")
   return datestr;
 }
 
-// function useWindowSize() {
-//   const [size, setSize] = useState([0, 0]);
-//   useLayoutEffect(() => {
-//     function updateSize() {
-//       setSize([window.innerWidth, window.innerHeight]);
-//     }
-//     window.addEventListener("resize", updateSize);
-//     updateSize();
-//     return () => window.removeEventListener("resize", updateSize);
-//   }, []);
-//   return size;
-// }
 
 function App() {
   const [dateval, setDateval] = useState(0);
   const [maxDay, setMaxDay] = useState(
-    Math.floor((Date.now() - new Date(2020, 3, 16).getTime()) / 86400000)
+    Math.floor((Date.now() - new Date(2020, 3, 16).getTime()) / 86400000) - 1
   );
   const setDate = (val) => {
     if (oldVal !== val) {
@@ -56,9 +45,10 @@ function App() {
     async function loadData() {
       const data = await import(`./county_combined.json`);
       const date = Object.keys(data).slice(-2)[0].replace("deaths", "");
+      console.log(date);
       setMaxDay(
         Math.floor(
-          1 + (new Date(date) - new Date(2020, 3, 16).getTime()) / 86400000
+         (new Date(date) - new Date(2020, 3, 16).getTime()) / 86400000
         )
       );
       setCases(data);
@@ -75,8 +65,7 @@ function App() {
         clearTimeout(timer.current);
       }
       timer.current = setTimeout(() => {
-        console.timeEnd("timer");
-        console.time("timer");
+        console.log(dateval);
         setDateval(Math.min(dateval + increment, maxDay));
 
         if (dateval + 1 === maxDay) {
